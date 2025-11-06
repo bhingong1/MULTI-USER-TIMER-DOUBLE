@@ -66,4 +66,160 @@
         <p class="text-green-100 mt-1">User 2</p>
       </div>
       <div class="p-8 text-center">
-        <div class="text-gray-500 dar
+        <div class="text-gray-500 dark:text-gray-300 mb-3 userLabel">User: -</div>
+        <div class="timer-display text-7xl font-bold text-gray-800 dark:text-white mb-6">00:00</div>
+
+        <div class="flex justify-center space-x-4 mb-6">
+          <button class="resetBtn bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white px-5 py-3 rounded-full shadow-lg">
+            <i data-feather="refresh-cw" class="inline mr-2"></i> Reset
+          </button>
+          <button class="settingsBtn bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white px-5 py-3 rounded-full shadow-lg">
+            <i data-feather="settings" class="inline mr-2"></i> Settings
+          </button>
+        </div>
+
+        <div class="settingsPanel bg-gray-50 dark:bg-gray-700 p-6 rounded-xl hidden">
+          <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">User Settings</h3>
+          <div class="mb-4 text-left">
+            <label class="block mb-1 text-gray-700 dark:text-gray-300">Username:</label>
+            <input type="text" placeholder="contoh: user2" class="usernameInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white">
+          </div>
+          <div class="mb-4 text-left">
+            <label class="block mb-1 text-gray-700 dark:text-gray-300">Durasi (menit):</label>
+            <input type="number" min="1" max="120" value="15" class="minutesInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white">
+          </div>
+          <button class="saveUserBtn w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-md font-medium">Simpan & Gunakan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alarm -->
+  <audio id="alarmSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
+  <script>
+    // === 1️⃣ Firebase Config ===
+    const firebaseConfig = {
+      apiKey: "ISI_APIKEY_KAMU",
+      authDomain: "live-timer-819ec.firebaseapp.com",
+      databaseURL: "https://live-timer-819ec-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "live-timer-819ec",
+      storageBucket: "live-timer-819ec.appspot.com",
+      messagingSenderId: "1025604126659",
+      appId: "1:1025604126659:web:2d5652951b24196a0f5f76"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const alarmSound = document.getElementById("alarmSound");
+
+    // === 2️⃣ Buat fungsi modular untuk inisialisasi tiap timer ===
+    function initTimer(containerId, colorKey) {
+      const container = document.getElementById(containerId);
+      const timerDisplay = container.querySelector(".timer-display");
+      const resetBtn = container.querySelector(".resetBtn");
+      const settingsBtn = container.querySelector(".settingsBtn");
+      const settingsPanel = container.querySelector(".settingsPanel");
+      const usernameInput = container.querySelector(".usernameInput");
+      const minutesInput = container.querySelector(".minutesInput");
+      const saveUserBtn = container.querySelector(".saveUserBtn");
+      const userLabel = container.querySelector(".userLabel");
+
+      let username = localStorage.getItem("username_" + containerId) || "";
+      let defaultTime = parseInt(localStorage.getItem("defaultTime_" + containerId)) || 15 * 60;
+      let timerRef = null;
+      let endTime = null;
+      let localTimer = null;
+      let alarmPlayed = false;
+
+      function updateDisplay(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        timerDisplay.textContent = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+      }
+
+      function playAlarm() {
+        if (alarmPlayed) return;
+        alarmPlayed = true;
+        alarmSound.play().catch(() => console.log("Autoplay blocked"));
+        timerDisplay.classList.add("pulse-animation");
+        setTimeout(() => timerDisplay.classList.remove("pulse-animation"), 6000);
+      }
+
+      function startLocalTimer() {
+        clearInterval(localTimer);
+        localTimer = setInterval(() => {
+          const now = Date.now();
+          const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+          updateDisplay(remaining);
+          if (remaining <= 0) {
+            clearInterval(localTimer);
+            playAlarm();
+          }
+        }, 1000);
+      }
+
+      function subscribeToUserTimer() {
+        if (!username) return;
+        timerRef = db.ref("sharedTimers/" + username);
+        timerRef.on("value", (snap) => {
+          const data = snap.val();
+          if (!data) return;
+          endTime = data.endTime;
+          defaultTime = data.defaultTime;
+          alarmPlayed = false;
+          updateDisplay(Math.max(0, Math.floor((endTime - Date.now()) / 1000)));
+          startLocalTimer();
+        });
+        timerRef.once("value").then((snap) => {
+          if (!snap.exists()) resetTimer();
+        });
+      }
+
+      function resetTimer() {
+        if (!username) {
+          alert("Masukkan username di Settings dulu!");
+          return;
+        }
+        const newEndTime = Date.now() + defaultTime * 1000;
+        timerRef.set({ defaultTime, endTime: newEndTime });
+      }
+
+      saveUserBtn.addEventListener("click", () => {
+        username = usernameInput.value.trim().toLowerCase();
+        const minutes = parseInt(minutesInput.value);
+        if (!username) return alert("Masukkan username!");
+        if (isNaN(minutes) || minutes < 1) return alert("Durasi tidak valid.");
+
+        defaultTime = minutes * 60;
+        localStorage.setItem("username_" + containerId, username);
+        localStorage.setItem("defaultTime_" + containerId, defaultTime);
+        userLabel.textContent = `User: ${username}`;
+        settingsPanel.classList.add("hidden");
+        subscribeToUserTimer();
+        resetTimer();
+      });
+
+      resetBtn.addEventListener("click", resetTimer);
+      settingsBtn.addEventListener("click", () => {
+        settingsPanel.classList.toggle("hidden");
+        usernameInput.value = username || "";
+        minutesInput.value = Math.floor(defaultTime / 60);
+      });
+
+      updateDisplay(defaultTime);
+      if (username) {
+        userLabel.textContent = `User: ${username}`;
+        subscribeToUserTimer();
+      } else {
+        userLabel.textContent = "User belum diatur";
+        settingsPanel.classList.remove("hidden");
+      }
+    }
+
+    // === 3️⃣ Jalankan untuk dua timer ===
+    feather.replace();
+    initTimer("timer1", "indigo");
+    initTimer("timer2", "green");
+  </script>
+</body>
+</html>
