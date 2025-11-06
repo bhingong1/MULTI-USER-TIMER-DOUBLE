@@ -20,11 +20,13 @@
   </style>
 </head>
 
-<body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col items-center justify-center p-4 space-y-10">
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col items-center justify-center p-4">
 
-  <!-- TIMER 1 -->
-  <div id="timer1" class="w-full max-w-md mx-auto">
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+  <!-- GRID dua kolom responsif -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-6xl">
+
+    <!-- TIMER 1 -->
+    <div id="timer1" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
       <div class="bg-indigo-600 p-6 text-center">
         <h1 class="text-2xl font-bold text-white">Timer #1</h1>
         <p class="text-indigo-100 mt-1">User 1</p>
@@ -56,11 +58,9 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- TIMER 2 -->
-  <div id="timer2" class="w-full max-w-md mx-auto">
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+    <!-- TIMER 2 -->
+    <div id="timer2" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
       <div class="bg-green-600 p-6 text-center">
         <h1 class="text-2xl font-bold text-white">Timer #2</h1>
         <p class="text-green-100 mt-1">User 2</p>
@@ -92,6 +92,7 @@
         </div>
       </div>
     </div>
+
   </div>
 
   <!-- Alarm -->
@@ -112,8 +113,8 @@
     const db = firebase.database();
     const alarmSound = document.getElementById("alarmSound");
 
-    // === 2️⃣ Buat fungsi modular untuk inisialisasi tiap timer ===
-    function initTimer(containerId, colorKey) {
+    // === 2️⃣ Fungsi modular untuk tiap timer ===
+    function initTimer(containerId) {
       const container = document.getElementById(containerId);
       const timerDisplay = container.querySelector(".timer-display");
       const resetBtn = container.querySelector(".resetBtn");
@@ -216,10 +217,10 @@
       }
     }
 
-    // === 3️⃣ Jalankan untuk dua timer ===
+    // === 3️⃣ Jalankan dua timer berdampingan ===
     feather.replace();
-    initTimer("timer1", "indigo");
-    initTimer("timer2", "green");
+    initTimer("timer1");
+    initTimer("timer2");
   </script>
 </body>
 </html>
