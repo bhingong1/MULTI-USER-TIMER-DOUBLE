@@ -1,0 +1,146 @@
+<script>
+    // === 1️⃣ Firebase Config ===
+    const firebaseConfig = {
+      apiKey: "ISI_APIKEY_KAMU",
+      authDomain: "live-timer-819ec.firebaseapp.com",
+      databaseURL: "https://live-timer-819ec-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "live-timer-819ec",
+      storageBucket: "live-timer-819ec.appspot.com",
+      messagingSenderId: "1025604126659",
+      appId: "1:1025604126659:web:2d5652951b24196a0f5f76"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const alarmSound = document.getElementById("alarmSound");
+
+    // === 2️⃣ Fungsi modular untuk tiap timer ===
+    function initTimer(containerId) {
+      const container = document.getElementById(containerId);
+      const timerDisplay = container.querySelector(".timer-display");
+      const resetBtn = container.querySelector(".resetBtn");
+      const settingsBtn = container.querySelector(".settingsBtn");
+      const settingsPanel = container.querySelector(".settingsPanel");
+      const usernameInput = container.querySelector(".usernameInput");
+      const minutesInput = container.querySelector(".minutesInput");
+      const saveUserBtn = container.querySelector(".saveUserBtn");
+      const userLabel = container.querySelector(".userLabel");
+
+      let username = localStorage.getItem("username_" + containerId) || "";
+      let defaultTime = parseInt(localStorage.getItem("defaultTime_" + containerId)) || 15 * 60;
+      let timerRef = null;
+      let endTime = null;
+      let localTimer = null;
+      let alarmPlayed = false;
+
+      function updateDisplay(sec) {
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        timerDisplay.textContent = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+      }
+
+      function playAlarm() {
+        if (alarmPlayed) return;
+        alarmPlayed = true;
+        alarmSound.play().catch(() => console.log("Autoplay blocked"));
+        timerDisplay.classList.add("pulse-animation");
+        setTimeout(() => timerDisplay.classList.remove("pulse-animation"), 6000);
+      }
+
+      function startLocalTimer() {
+        clearInterval(localTimer);
+        localTimer = setInterval(() => {
+          const now = Date.now();
+          const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+          updateDisplay(remaining);
+          if (remaining <= 0) {
+            clearInterval(localTimer);
+            playAlarm();
+          }
+        }, 1000);
+      }
+
+      function subscribeToUserTimer() {
+        if (!username) return;
+        timerRef = db.ref("sharedTimers/" + username);
+        timerRef.on("value", (snap) => {
+          const data = snap.val();
+          if (!data) return;
+          endTime = data.endTime;
+          defaultTime = data.defaultTime;
+          alarmPlayed = false; // Reset alarm state ketika data baru diterima
+          updateDisplay(Math.max(0, Math.floor((endTime - Date.now()) / 1000)));
+          startLocalTimer();
+        });
+        timerRef.once("value").then((snap) => {
+          if (!snap.exists()) resetTimer();
+        });
+      }
+
+      function resetTimer() {
+        console.log("Reset button clicked for", username); // Debug log
+        if (!username) {
+          alert("Masukkan username di Settings dulu!");
+          return;
+        }
+        if (!timerRef) {
+          alert("Timer belum terhubung ke database. Coba simpan settings lagi.");
+          return;
+        }
+        
+        const newEndTime = Date.now() + defaultTime * 1000;
+        alarmPlayed = false; // Reset alarm state
+        timerDisplay.classList.remove("pulse-animation"); // Hentikan animasi
+        
+        console.log("Setting new endTime:", newEndTime); // Debug log
+        
+        timerRef.set({ 
+          defaultTime: defaultTime, 
+          endTime: newEndTime 
+        }).then(() => {
+          console.log("Timer reset successfully"); // Debug log
+        }).catch((error) => {
+          console.error("Error resetting timer:", error);
+          alert("Error resetting timer: " + error.message);
+        });
+      }
+
+      // Event Listeners
+      saveUserBtn.addEventListener("click", () => {
+        username = usernameInput.value.trim().toLowerCase();
+        const minutes = parseInt(minutesInput.value);
+        if (!username) return alert("Masukkan username!");
+        if (isNaN(minutes) || minutes < 1) return alert("Durasi tidak valid.");
+
+        defaultTime = minutes * 60;
+        localStorage.setItem("username_" + containerId, username);
+        localStorage.setItem("defaultTime_" + containerId, defaultTime);
+        userLabel.textContent = `User: ${username}`;
+        settingsPanel.classList.add("hidden");
+        subscribeToUserTimer();
+        resetTimer();
+      });
+
+      resetBtn.addEventListener("click", resetTimer);
+      
+      settingsBtn.addEventListener("click", () => {
+        settingsPanel.classList.toggle("hidden");
+        usernameInput.value = username || "";
+        minutesInput.value = Math.floor(defaultTime / 60);
+      });
+
+      // Initialize
+      updateDisplay(defaultTime);
+      if (username) {
+        userLabel.textContent = `User: ${username}`;
+        subscribeToUserTimer();
+      } else {
+        userLabel.textContent = "User belum diatur";
+        settingsPanel.classList.remove("hidden");
+      }
+    }
+
+    // === 3️⃣ Jalankan dua timer berdampingan ===
+    feather.replace();
+    initTimer("timer1");
+    initTimer("timer2");
+</script>
