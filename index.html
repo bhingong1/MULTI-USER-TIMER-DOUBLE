@@ -5,14 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Realtime Dual Timer Multi User ⏱️</title>
 
-  <!-- Tailwind & Feather -->
+  <!-- Tailwind CSS dari CDN (alternatif) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-
   <style>
     @keyframes pulse { 
       0%, 100% { transform: scale(1); } 
@@ -28,93 +22,191 @@
     .timer-ended {
       color: #ef4444;
     }
+    .config-panel {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
   </style>
+  
+  <!-- Feather Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 </head>
 
 <body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col items-center justify-center p-4">
-  <div class="max-w-4xl w-full text-center mb-8">
-    <h1 class="text-4xl font-bold text-gray-800 dark:text-white mb-2">Realtime Dual Timer</h1>
-    <p class="text-gray-600 dark:text-gray-300">Multi-user timer dengan sinkronisasi realtime</p>
+  
+  <!-- Panel Konfigurasi Firebase -->
+  <div id="firebaseConfigPanel" class="config-panel text-white p-6 rounded-2xl shadow-xl mb-8 w-full max-w-2xl">
+    <h2 class="text-2xl font-bold mb-4">⚙️ Konfigurasi Firebase</h2>
+    <p class="mb-4">Isi dengan data dari Firebase Console project Anda:</p>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="block mb-1 text-sm">apiKey:</label>
+        <input type="text" id="apiKey" placeholder="AIzaSyB..." class="w-full p-2 rounded bg-white bg-opacity-20 text-white placeholder-gray-200 border border-white border-opacity-30">
+      </div>
+      <div>
+        <label class="block mb-1 text-sm">authDomain:</label>
+        <input type="text" id="authDomain" placeholder="project-id.firebaseapp.com" class="w-full p-2 rounded bg-white bg-opacity-20 text-white placeholder-gray-200 border border-white border-opacity-30">
+      </div>
+      <div>
+        <label class="block mb-1 text-sm">databaseURL:</label>
+        <input type="text" id="databaseURL" placeholder="https://project-id.firebaseio.com" class="w-full p-2 rounded bg-white bg-opacity-20 text-white placeholder-gray-200 border border-white border-opacity-30">
+      </div>
+      <div>
+        <label class="block mb-1 text-sm">projectId:</label>
+        <input type="text" id="projectId" placeholder="project-id" class="w-full p-2 rounded bg-white bg-opacity-20 text-white placeholder-gray-200 border border-white border-opacity-30">
+      </div>
+      <div>
+        <label class="block mb-1 text-sm">storageBucket:</label>
+        <input type="text" id="storageBucket" placeholder="project-id.appspot.com" class="w-full p-2 rounded bg-white bg-opacity-20 text-white placeholder-gray-200 border border-white border-opacity-30">
+      </div>
+      <div>
+        <label class="block mb-1 text-sm">messagingSenderId:</label>
+        <input type="text" id="messagingSenderId" placeholder="123456789" class="w-full p-2 rounded bg-white bg-opacity-20 text-white placeholder-gray-200 border border-white border-opacity-30">
+      </div>
+      <div class="md:col-span-2">
+        <label class="block mb-1 text-sm">appId:</label>
+        <input type="text" id="appId" placeholder="1:123456789:web:abc123def456" class="w-full p-2 rounded bg-white bg-opacity-20 text-white placeholder-gray-200 border border-white border-opacity-30">
+      </div>
+    </div>
+    
+    <div class="flex gap-4">
+      <button id="saveConfig" class="flex-1 bg-white text-purple-600 px-6 py-3 rounded-lg font-bold hover:bg-gray-100 transition duration-200">
+        💾 Simpan Konfigurasi
+      </button>
+      <button id="testConnection" class="flex-1 bg-green-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-green-600 transition duration-200">
+        🔄 Test Koneksi
+      </button>
+    </div>
+    
+    <div class="mt-4 text-sm bg-white bg-opacity-20 p-3 rounded">
+      <p class="font-semibold">📝 Cara mendapatkan config:</p>
+      <ol class="list-decimal list-inside mt-2 space-y-1">
+        <li>Buka <a href="https://console.firebase.google.com/" target="_blank" class="underline">Firebase Console</a></li>
+        <li>Pilih project → Settings (ikon gerigi) → Project settings</li>
+        <li>Scroll ke "Your apps" → Pilih web app → Copy config</li>
+        <li>Pastikan Realtime Database sudah diaktifkan dan aturan keamanan diperbaiki</li>
+      </ol>
+    </div>
+
+    <!-- Info Firebase Rules -->
+    <div class="mt-4 p-3 bg-yellow-500 bg-opacity-20 rounded border border-yellow-400">
+      <p class="font-semibold">⚠️ Penting: Perbaiki Firebase Rules</p>
+      <p class="text-sm mt-1">Buka Firebase Console → Realtime Database → Rules, lalu ganti dengan:</p>
+      <code class="text-xs block mt-2 bg-black bg-opacity-30 p-2 rounded">
+        {<br>
+        &nbsp; "rules": {<br>
+        &nbsp; &nbsp; "sharedTimers": {<br>
+        &nbsp; &nbsp; &nbsp; "$username": {<br>
+        &nbsp; &nbsp; &nbsp; &nbsp; ".read": true,<br>
+        &nbsp; &nbsp; &nbsp; &nbsp; ".write": true<br>
+        &nbsp; &nbsp; &nbsp; }<br>
+        &nbsp; &nbsp; }<br>
+        &nbsp; }<br>
+        }
+      </code>
+    </div>
   </div>
 
-  <!-- GRID dua kolom responsif -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-6xl">
+  <!-- Container Timer (Awalnya Disembunyikan) -->
+  <div id="timerContainer" class="hidden w-full">
+    <div class="max-w-4xl w-full text-center mb-8">
+      <h1 class="text-4xl font-bold text-gray-800 dark:text-white mb-2">Realtime Dual Timer</h1>
+      <p class="text-gray-600 dark:text-gray-300">Multi-user timer dengan sinkronisasi realtime</p>
+    </div>
 
-    <!-- TIMER 1 -->
-    <div id="timer1" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border-2 border-indigo-200 dark:border-indigo-800">
-      <div class="bg-indigo-600 p-6 text-center">
-        <h1 class="text-2xl font-bold text-white">Timer #1</h1>
-        <p class="text-indigo-100 mt-1">User 1</p>
+    <!-- GRID dua kolom responsif -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-6xl">
+
+      <!-- TIMER 1 -->
+      <div id="timer1" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border-2 border-indigo-200 dark:border-indigo-800">
+        <div class="bg-indigo-600 p-6 text-center">
+          <h1 class="text-2xl font-bold text-white">Timer #1</h1>
+          <p class="text-indigo-100 mt-1">User 1</p>
+        </div>
+        <div class="p-8 text-center">
+          <div class="text-gray-500 dark:text-gray-300 mb-3 userLabel">User: -</div>
+          <div class="timer-display text-7xl font-bold text-gray-800 dark:text-white mb-6">15:00</div>
+
+          <div class="flex justify-center space-x-4 mb-6">
+            <button class="resetBtn bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full shadow-lg transition duration-200 flex items-center">
+              <i data-feather="refresh-cw" class="inline mr-2"></i> Reset
+            </button>
+            <button class="settingsBtn bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white px-6 py-3 rounded-full shadow-lg transition duration-200 flex items-center">
+              <i data-feather="settings" class="inline mr-2"></i> Settings
+            </button>
+          </div>
+
+          <div class="settingsPanel bg-gray-50 dark:bg-gray-700 p-6 rounded-xl mt-4 hidden">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">User Settings</h3>
+            <div class="mb-4 text-left">
+              <label class="block mb-1 text-gray-700 dark:text-gray-300">Username:</label>
+              <input type="text" placeholder="contoh: user1" class="usernameInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <p class="text-xs text-gray-500 mt-1">Gunakan username sederhana tanpa spasi</p>
+            </div>
+            <div class="mb-4 text-left">
+              <label class="block mb-1 text-gray-700 dark:text-gray-300">Durasi (menit):</label>
+              <input type="number" min="1" max="120" value="15" class="minutesInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <button class="saveUserBtn w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-md font-medium transition duration-200">Simpan & Gunakan</button>
+          </div>
+        </div>
       </div>
-      <div class="p-8 text-center">
-        <div class="text-gray-500 dark:text-gray-300 mb-3 userLabel">User: -</div>
-        <div class="timer-display text-7xl font-bold text-gray-800 dark:text-white mb-6">15:00</div>
 
-        <div class="flex justify-center space-x-4 mb-6">
-          <button class="resetBtn bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-full shadow-lg transition duration-200 flex items-center">
-            <i data-feather="refresh-cw" class="inline mr-2"></i> Reset
-          </button>
-          <button class="settingsBtn bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white px-6 py-3 rounded-full shadow-lg transition duration-200 flex items-center">
-            <i data-feather="settings" class="inline mr-2"></i> Settings
-          </button>
+      <!-- TIMER 2 -->
+      <div id="timer2" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border-2 border-green-200 dark:border-green-800">
+        <div class="bg-green-600 p-6 text-center">
+          <h1 class="text-2xl font-bold text-white">Timer #2</h1>
+          <p class="text-green-100 mt-1">User 2</p>
         </div>
+        <div class="p-8 text-center">
+          <div class="text-gray-500 dark:text-gray-300 mb-3 userLabel">User: -</div>
+          <div class="timer-display text-7xl font-bold text-gray-800 dark:text-white mb-6">15:00</div>
 
-        <div class="settingsPanel bg-gray-50 dark:bg-gray-700 p-6 rounded-xl mt-4 hidden">
-          <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">User Settings</h3>
-          <div class="mb-4 text-left">
-            <label class="block mb-1 text-gray-700 dark:text-gray-300">Username:</label>
-            <input type="text" placeholder="contoh: user1" class="usernameInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <div class="flex justify-center space-x-4 mb-6">
+            <button class="resetBtn bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full shadow-lg transition duration-200 flex items-center">
+              <i data-feather="refresh-cw" class="inline mr-2"></i> Reset
+            </button>
+            <button class="settingsBtn bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white px-6 py-3 rounded-full shadow-lg transition duration-200 flex items-center">
+              <i data-feather="settings" class="inline mr-2"></i> Settings
+            </button>
           </div>
-          <div class="mb-4 text-left">
-            <label class="block mb-1 text-gray-700 dark:text-gray-300">Durasi (menit):</label>
-            <input type="number" min="1" max="120" value="15" class="minutesInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+
+          <div class="settingsPanel bg-gray-50 dark:bg-gray-700 p-6 rounded-xl mt-4 hidden">
+            <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">User Settings</h3>
+            <div class="mb-4 text-left">
+              <label class="block mb-1 text-gray-700 dark:text-gray-300">Username:</label>
+              <input type="text" placeholder="contoh: user2" class="usernameInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-green-500">
+              <p class="text-xs text-gray-500 mt-1">Gunakan username sederhana tanpa spasi</p>
+            </div>
+            <div class="mb-4 text-left">
+              <label class="block mb-1 text-gray-700 dark:text-gray-300">Durasi (menit):</label>
+              <input type="number" min="1" max="120" value="15" class="minutesInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-green-500">
+            </div>
+            <button class="saveUserBtn w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-md font-medium transition duration-200">Simpan & Gunakan</button>
           </div>
-          <button class="saveUserBtn w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-md font-medium transition duration-200">Simpan & Gunakan</button>
         </div>
+      </div>
+
+    </div>
+
+    <!-- Status Connection -->
+    <div class="mt-8 text-center">
+      <div id="connectionStatus" class="inline-flex items-center px-4 py-2 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+        <span class="w-3 h-3 bg-gray-500 rounded-full mr-2"></span>
+        <span>Menunggu koneksi...</span>
       </div>
     </div>
 
-    <!-- TIMER 2 -->
-    <div id="timer2" class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border-2 border-green-200 dark:border-green-800">
-      <div class="bg-green-600 p-6 text-center">
-        <h1 class="text-2xl font-bold text-white">Timer #2</h1>
-        <p class="text-green-100 mt-1">User 2</p>
-      </div>
-      <div class="p-8 text-center">
-        <div class="text-gray-500 dark:text-gray-300 mb-3 userLabel">User: -</div>
-        <div class="timer-display text-7xl font-bold text-gray-800 dark:text-white mb-6">15:00</div>
-
-        <div class="flex justify-center space-x-4 mb-6">
-          <button class="resetBtn bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-full shadow-lg transition duration-200 flex items-center">
-            <i data-feather="refresh-cw" class="inline mr-2"></i> Reset
-          </button>
-          <button class="settingsBtn bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white px-6 py-3 rounded-full shadow-lg transition duration-200 flex items-center">
-            <i data-feather="settings" class="inline mr-2"></i> Settings
-          </button>
-        </div>
-
-        <div class="settingsPanel bg-gray-50 dark:bg-gray-700 p-6 rounded-xl mt-4 hidden">
-          <h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">User Settings</h3>
-          <div class="mb-4 text-left">
-            <label class="block mb-1 text-gray-700 dark:text-gray-300">Username:</label>
-            <input type="text" placeholder="contoh: user2" class="usernameInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-green-500">
-          </div>
-          <div class="mb-4 text-left">
-            <label class="block mb-1 text-gray-700 dark:text-gray-300">Durasi (menit):</label>
-            <input type="number" min="1" max="120" value="15" class="minutesInput w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-green-500 focus:border-green-500">
-          </div>
-          <button class="saveUserBtn w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-md font-medium transition duration-200">Simpan & Gunakan</button>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- Status Connection -->
-  <div class="mt-8 text-center">
-    <div id="connectionStatus" class="inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-      <span class="w-3 h-3 bg-green-500 rounded-full mr-2"></span>
-      <span>Terhubung ke Database</span>
+    <!-- Debug Info -->
+    <div class="mt-4 text-center">
+      <button id="debugBtn" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+        🐛 Debug Info
+      </button>
+      <div id="debugInfo" class="hidden mt-2 p-3 bg-gray-100 dark:bg-gray-800 rounded text-left text-xs"></div>
     </div>
   </div>
 
@@ -122,234 +214,371 @@
   <audio id="alarmSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 
   <script>
-    // === 1️⃣ Firebase Config ===
-    // GANTI DENGAN KONFIGURASI FIREBASE ANDA SENDIRI
-    const firebaseConfig = {
-      apiKey: "AIzaSyAMo1jBdJCo99nRL518WLgHaqdZvM-VYKg",
-      authDomain: "live-timer-819ec.firebaseapp.com",
-      databaseURL: "https://live-timer-819ec-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "live-timer-819ec",
-      storageBucket: "live-timer-819ec.appspot.com",
-      messagingSenderId: "1025604126659",
-      appId: "1:1025604126659:web:2d5652951b24196a0f5f76"
-    };
+    // === 1️⃣ Inisialisasi Awal ===
+    feather.replace();
+    let firebaseInitialized = false;
+    let db = null;
 
-    // Inisialisasi Firebase
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const alarmSound = document.getElementById("alarmSound");
-    const connectionStatus = document.getElementById("connectionStatus");
+    // === 2️⃣ Fungsi untuk Test Koneksi Firebase ===
+    async function testFirebaseConnection(config) {
+      try {
+        // Coba inisialisasi app sementara untuk test
+        const testApp = firebase.initializeApp(config, 'TestApp');
+        const testDb = testApp.database();
+        
+        // Test write dan read
+        const testRef = testDb.ref('connectionTest');
+        const testData = { timestamp: Date.now(), test: true };
+        
+        await testRef.set(testData);
+        const snapshot = await testRef.once('value');
+        const retrievedData = snapshot.val();
+        
+        // Hapus data test
+        await testRef.remove();
+        
+        // Hapus app test
+        testApp.delete();
+        
+        return {
+          success: true,
+          message: '✅ Koneksi Firebase berhasil!',
+          data: retrievedData
+        };
+      } catch (error) {
+        return {
+          success: false,
+          message: '❌ Koneksi gagal: ' + error.message,
+          error: error
+        };
+      }
+    }
 
-    // Monitor koneksi Firebase
-    const connectedRef = db.ref(".info/connected");
-    connectedRef.on("value", function(snap) {
-      if (snap.val() === true) {
-        connectionStatus.innerHTML = '<span class="w-3 h-3 bg-green-500 rounded-full mr-2"></span><span>Terhubung ke Database</span>';
-        connectionStatus.className = "inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
-      } else {
-        connectionStatus.innerHTML = '<span class="w-3 h-3 bg-red-500 rounded-full mr-2"></span><span>Terputus dari Database</span>';
-        connectionStatus.className = "inline-flex items-center px-4 py-2 rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+    // === 3️⃣ Fungsi untuk Inisialisasi Firebase ===
+    function initializeFirebase(config) {
+      try {
+        const app = firebase.initializeApp(config);
+        db = app.database();
+        firebaseInitialized = true;
+        
+        // Tampilkan timer container
+        document.getElementById('firebaseConfigPanel').classList.add('hidden');
+        document.getElementById('timerContainer').classList.remove('hidden');
+        
+        // Inisialisasi timer
+        initTimers();
+        
+        return true;
+      } catch (error) {
+        console.error("Error initializing Firebase:", error);
+        alert("Error menginisialisasi Firebase: " + error.message);
+        return false;
+      }
+    }
+
+    // === 4️⃣ Fungsi untuk Load Konfigurasi dari LocalStorage ===
+    function loadSavedConfig() {
+      const savedConfig = localStorage.getItem('firebaseConfig');
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        // Isi form dengan config yang tersimpan
+        document.getElementById('apiKey').value = config.apiKey || '';
+        document.getElementById('authDomain').value = config.authDomain || '';
+        document.getElementById('databaseURL').value = config.databaseURL || '';
+        document.getElementById('projectId').value = config.projectId || '';
+        document.getElementById('storageBucket').value = config.storageBucket || '';
+        document.getElementById('messagingSenderId').value = config.messagingSenderId || '';
+        document.getElementById('appId').value = config.appId || '';
+      }
+    }
+
+    // === 5️⃣ Event Listeners ===
+    document.getElementById('saveConfig').addEventListener('click', async function() {
+      const config = {
+        apiKey: document.getElementById('apiKey').value.trim(),
+        authDomain: document.getElementById('authDomain').value.trim(),
+        databaseURL: document.getElementById('databaseURL').value.trim(),
+        projectId: document.getElementById('projectId').value.trim(),
+        storageBucket: document.getElementById('storageBucket').value.trim(),
+        messagingSenderId: document.getElementById('messagingSenderId').value.trim(),
+        appId: document.getElementById('appId').value.trim()
+      };
+
+      // Validasi config
+      if (!config.apiKey || !config.databaseURL) {
+        alert('API Key dan Database URL wajib diisi!');
+        return;
+      }
+
+      // Simpan ke localStorage
+      localStorage.setItem('firebaseConfig', JSON.stringify(config));
+      
+      // Initialize Firebase
+      if (initializeFirebase(config)) {
+        console.log('Firebase initialized successfully!');
       }
     });
 
-    // === 2️⃣ Fungsi modular untuk tiap timer ===
-    function initTimer(containerId) {
-      const container = document.getElementById(containerId);
-      const timerDisplay = container.querySelector(".timer-display");
-      const resetBtn = container.querySelector(".resetBtn");
-      const settingsBtn = container.querySelector(".settingsBtn");
-      const settingsPanel = container.querySelector(".settingsPanel");
-      const usernameInput = container.querySelector(".usernameInput");
-      const minutesInput = container.querySelector(".minutesInput");
-      const saveUserBtn = container.querySelector(".saveUserBtn");
-      const userLabel = container.querySelector(".userLabel");
+    document.getElementById('testConnection').addEventListener('click', async function() {
+      const config = {
+        apiKey: document.getElementById('apiKey').value.trim(),
+        authDomain: document.getElementById('authDomain').value.trim(),
+        databaseURL: document.getElementById('databaseURL').value.trim(),
+        projectId: document.getElementById('projectId').value.trim(),
+        storageBucket: document.getElementById('storageBucket').value.trim(),
+        messagingSenderId: document.getElementById('messagingSenderId').value.trim(),
+        appId: document.getElementById('appId').value.trim()
+      };
 
-      let username = localStorage.getItem("username_" + containerId) || "";
-      let defaultTime = parseInt(localStorage.getItem("defaultTime_" + containerId)) || 15 * 60;
-      let timerRef = null;
-      let endTime = null;
-      let localTimer = null;
-      let alarmPlayed = false;
-
-      function updateDisplay(sec) {
-        const m = Math.floor(sec / 60);
-        const s = sec % 60;
-        timerDisplay.textContent = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-        
-        // Tambah efek visual ketika timer hampir habis
-        if (sec <= 10 && sec > 0) {
-          timerDisplay.classList.add("text-red-500");
-        } else if (sec === 0) {
-          timerDisplay.classList.add("timer-ended");
-        } else {
-          timerDisplay.classList.remove("text-red-500", "timer-ended");
-        }
+      if (!config.apiKey || !config.databaseURL) {
+        alert('Isi API Key dan Database URL terlebih dahulu!');
+        return;
       }
 
-      function playAlarm() {
-        if (alarmPlayed) return;
-        alarmPlayed = true;
-        
-        // Coba mainkan alarm
-        alarmSound.currentTime = 0;
-        const playPromise = alarmSound.play();
-        
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.log("Autoplay diblokir oleh browser:", error);
-            // Tampilkan notifikasi visual sebagai fallback
-            timerDisplay.classList.add("pulse-animation");
+      const result = await testFirebaseConnection(config);
+      alert(result.message);
+    });
+
+    // === 6️⃣ Fungsi Timer ===
+    function initTimers() {
+      const alarmSound = document.getElementById("alarmSound");
+      const connectionStatus = document.getElementById("connectionStatus");
+
+      // Monitor koneksi Firebase
+      const connectedRef = db.ref(".info/connected");
+      connectedRef.on("value", function(snap) {
+        if (snap.val() === true) {
+          connectionStatus.innerHTML = '<span class="w-3 h-3 bg-green-500 rounded-full mr-2"></span><span>Terhubung ke Database</span>';
+          connectionStatus.className = "inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
+        } else {
+          connectionStatus.innerHTML = '<span class="w-3 h-3 bg-red-500 rounded-full mr-2"></span><span>Terputus dari Database</span>';
+          connectionStatus.className = "inline-flex items-center px-4 py-2 rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+        }
+      });
+
+      function initTimer(containerId) {
+        const container = document.getElementById(containerId);
+        const timerDisplay = container.querySelector(".timer-display");
+        const resetBtn = container.querySelector(".resetBtn");
+        const settingsBtn = container.querySelector(".settingsBtn");
+        const settingsPanel = container.querySelector(".settingsPanel");
+        const usernameInput = container.querySelector(".usernameInput");
+        const minutesInput = container.querySelector(".minutesInput");
+        const saveUserBtn = container.querySelector(".saveUserBtn");
+        const userLabel = container.querySelector(".userLabel");
+
+        let username = localStorage.getItem("username_" + containerId) || "";
+        let defaultTime = parseInt(localStorage.getItem("defaultTime_" + containerId)) || 15 * 60;
+        let timerRef = null;
+        let endTime = null;
+        let localTimer = null;
+        let alarmPlayed = false;
+
+        function updateDisplay(sec) {
+          const m = Math.floor(sec / 60);
+          const s = sec % 60;
+          timerDisplay.textContent = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+          
+          if (sec <= 10 && sec > 0) {
+            timerDisplay.classList.add("text-red-500");
+          } else if (sec === 0) {
+            timerDisplay.classList.add("timer-ended");
+          } else {
+            timerDisplay.classList.remove("text-red-500", "timer-ended");
+          }
+        }
+
+        function playAlarm() {
+          if (alarmPlayed) return;
+          alarmPlayed = true;
+          
+          alarmSound.currentTime = 0;
+          const playPromise = alarmSound.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.log("Autoplay diblokir:", error);
+              timerDisplay.classList.add("pulse-animation");
+            });
+          }
+          
+          timerDisplay.classList.add("pulse-animation");
+          setTimeout(() => {
+            timerDisplay.classList.remove("pulse-animation");
+          }, 6000);
+        }
+
+        function startLocalTimer() {
+          clearInterval(localTimer);
+          localTimer = setInterval(() => {
+            const now = Date.now();
+            const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
+            updateDisplay(remaining);
+            
+            if (remaining <= 0) {
+              clearInterval(localTimer);
+              playAlarm();
+            }
+          }, 1000);
+        }
+
+        function subscribeToUserTimer() {
+          if (!username) return;
+          
+          // Bersihkan username dari karakter yang bermasalah
+          const cleanUsername = username.replace(/[.#$\/\[\]]/g, '_');
+          
+          timerRef = db.ref("sharedTimers/" + cleanUsername);
+          
+          timerRef.on("value", (snap) => {
+            const data = snap.val();
+            if (!data) {
+              resetTimer();
+              return;
+            }
+            
+            endTime = data.endTime;
+            defaultTime = data.defaultTime;
+            alarmPlayed = false;
+            
+            const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
+            updateDisplay(remaining);
+            startLocalTimer();
+          });
+          
+          timerRef.once("value").then((snap) => {
+            if (!snap.exists()) {
+              resetTimer();
+            }
+          }).catch(error => {
+            console.error("Error accessing database:", error);
+            alert("Error mengakses database: " + error.message + "\n\nPastikan Firebase Rules sudah diperbaiki!");
           });
         }
-        
-        timerDisplay.classList.add("pulse-animation");
-        setTimeout(() => {
-          timerDisplay.classList.remove("pulse-animation");
-        }, 6000);
-      }
 
-      function startLocalTimer() {
-        clearInterval(localTimer);
-        localTimer = setInterval(() => {
-          const now = Date.now();
-          const remaining = Math.max(0, Math.floor((endTime - now) / 1000));
-          updateDisplay(remaining);
-          
-          if (remaining <= 0) {
-            clearInterval(localTimer);
-            playAlarm();
-          }
-        }, 1000);
-      }
-
-      function subscribeToUserTimer() {
-        if (!username) return;
-        
-        timerRef = db.ref("sharedTimers/" + username);
-        
-        timerRef.on("value", (snap) => {
-          const data = snap.val();
-          if (!data) {
-            // Data tidak ada, buat data baru
-            resetTimer();
+        function resetTimer() {
+          if (!username) {
+            alert("Masukkan username di Settings dulu!");
             return;
           }
           
-          endTime = data.endTime;
-          defaultTime = data.defaultTime;
-          alarmPlayed = false; // Reset alarm state ketika data baru diterima
-          
-          const remaining = Math.max(0, Math.floor((endTime - Date.now()) / 1000));
-          updateDisplay(remaining);
-          startLocalTimer();
-        });
-        
-        // Cek apakah data sudah ada, jika tidak buat data baru
-        timerRef.once("value").then((snap) => {
-          if (!snap.exists()) {
-            resetTimer();
+          if (!timerRef) {
+            alert("Timer belum terhubung ke database. Coba simpan settings lagi.");
+            return;
           }
+          
+          const newEndTime = Date.now() + defaultTime * 1000;
+          alarmPlayed = false;
+          timerDisplay.classList.remove("pulse-animation", "timer-ended", "text-red-500");
+          
+          timerRef.set({ 
+            defaultTime: defaultTime, 
+            endTime: newEndTime 
+          }).then(() => {
+            console.log("Timer reset successfully for user:", username);
+          }).catch((error) => {
+            console.error("Error resetting timer:", error);
+            alert("Error resetting timer: " + error.message + "\n\nPastikan Firebase Rules sudah diperbaiki!");
+          });
+        }
+
+        saveUserBtn.addEventListener("click", () => {
+          username = usernameInput.value.trim().toLowerCase();
+          const minutes = parseInt(minutesInput.value);
+          
+          if (!username) {
+            alert("Masukkan username!");
+            return;
+          }
+          
+          // Validasi username
+          if (username.includes(' ')) {
+            alert("Username tidak boleh mengandung spasi. Gunakan underscore (_) sebagai pengganti.");
+            return;
+          }
+          
+          if (isNaN(minutes) || minutes < 1 || minutes > 120) {
+            alert("Durasi tidak valid. Harus antara 1-120 menit.");
+            return;
+          }
+
+          defaultTime = minutes * 60;
+          localStorage.setItem("username_" + containerId, username);
+          localStorage.setItem("defaultTime_" + containerId, defaultTime);
+          userLabel.textContent = `User: ${username}`;
+          settingsPanel.classList.add("hidden");
+          
+          subscribeToUserTimer();
         });
+
+        resetBtn.addEventListener("click", resetTimer);
+        
+        settingsBtn.addEventListener("click", () => {
+          settingsPanel.classList.toggle("hidden");
+          usernameInput.value = username || "";
+          minutesInput.value = Math.floor(defaultTime / 60);
+        });
+
+        updateDisplay(defaultTime);
+        if (username) {
+          userLabel.textContent = `User: ${username}`;
+          subscribeToUserTimer();
+        } else {
+          userLabel.textContent = "User belum diatur";
+          settingsPanel.classList.remove("hidden");
+        }
+        
+        return {
+          resetTimer,
+          getUsername: () => username
+        };
       }
 
-      function resetTimer() {
-        if (!username) {
-          alert("Masukkan username di Settings dulu!");
-          return;
+      const timer1 = initTimer("timer1");
+      const timer2 = initTimer("timer2");
+      
+      document.addEventListener('keydown', function(event) {
+        if (event.ctrlKey && event.key === '1') {
+          event.preventDefault();
+          timer1.resetTimer();
         }
-        
-        if (!timerRef) {
-          alert("Timer belum terhubung ke database. Coba simpan settings lagi.");
-          return;
+        if (event.ctrlKey && event.key === '2') {
+          event.preventDefault();
+          timer2.resetTimer();
         }
-        
-        const newEndTime = Date.now() + defaultTime * 1000;
-        alarmPlayed = false; // Reset alarm state
-        timerDisplay.classList.remove("pulse-animation", "timer-ended", "text-red-500"); // Hentikan animasi
-        
-        // Update ke Firebase
-        timerRef.set({ 
-          defaultTime: defaultTime, 
-          endTime: newEndTime 
-        }).then(() => {
-          console.log("Timer reset successfully for user:", username);
-        }).catch((error) => {
-          console.error("Error resetting timer:", error);
-          alert("Error resetting timer: " + error.message);
-        });
-      }
-
-      // Event Listeners
-      saveUserBtn.addEventListener("click", () => {
-        username = usernameInput.value.trim().toLowerCase();
-        const minutes = parseInt(minutesInput.value);
-        
-        if (!username) {
-          alert("Masukkan username!");
-          return;
-        }
-        
-        if (isNaN(minutes) || minutes < 1 || minutes > 120) {
-          alert("Durasi tidak valid. Harus antara 1-120 menit.");
-          return;
-        }
-
-        defaultTime = minutes * 60;
-        localStorage.setItem("username_" + containerId, username);
-        localStorage.setItem("defaultTime_" + containerId, defaultTime);
-        userLabel.textContent = `User: ${username}`;
-        settingsPanel.classList.add("hidden");
-        
-        // Subscribe ke timer user
-        subscribeToUserTimer();
       });
 
-      resetBtn.addEventListener("click", resetTimer);
-      
-      settingsBtn.addEventListener("click", () => {
-        settingsPanel.classList.toggle("hidden");
-        usernameInput.value = username || "";
-        minutesInput.value = Math.floor(defaultTime / 60);
+      // Debug info
+      document.getElementById('debugBtn').addEventListener('click', function() {
+        const debugInfo = document.getElementById('debugInfo');
+        debugInfo.classList.toggle('hidden');
+        debugInfo.innerHTML = `
+          <strong>Debug Information:</strong><br>
+          - Firebase Initialized: ${firebaseInitialized}<br>
+          - Database Connected: ${db ? 'Yes' : 'No'}<br>
+          - Timer 1 User: ${timer1.getUsername() || 'Not set'}<br>
+          - Timer 2 User: ${timer2.getUsername() || 'Not set'}<br>
+          - Current Time: ${new Date().toLocaleString()}
+        `;
       });
-
-      // Initialize
-      updateDisplay(defaultTime);
-      if (username) {
-        userLabel.textContent = `User: ${username}`;
-        subscribeToUserTimer();
-      } else {
-        userLabel.textContent = "User belum diatur";
-        settingsPanel.classList.remove("hidden");
-      }
-      
-      return {
-        resetTimer,
-        getUsername: () => username
-      };
     }
 
-    // === 3️⃣ Jalankan dua timer berdampingan ===
-    feather.replace();
-    
-    const timer1 = initTimer("timer1");
-    const timer2 = initTimer("timer2");
-    
-    // Tambahkan event listener untuk tombol reset dengan keyboard shortcut
-    document.addEventListener('keydown', function(event) {
-      // Ctrl+1 untuk reset timer 1
-      if (event.ctrlKey && event.key === '1') {
-        timer1.resetTimer();
-      }
-      // Ctrl+2 untuk reset timer 2
-      if (event.ctrlKey && event.key === '2') {
-        timer2.resetTimer();
+    // === 7️⃣ Load saved config saat halaman dimuat ===
+    document.addEventListener('DOMContentLoaded', function() {
+      loadSavedConfig();
+      feather.replace();
+      
+      // Jika config sudah ada di localStorage, coba initialize otomatis
+      const savedConfig = localStorage.getItem('firebaseConfig');
+      if (savedConfig) {
+        const config = JSON.parse(savedConfig);
+        if (config.apiKey && config.databaseURL) {
+          if (initializeFirebase(config)) {
+            console.log('Auto-initialized Firebase with saved config');
+          }
+        }
       }
     });
-    
-    // Info keyboard shortcut
-    console.log("Keyboard Shortcuts:");
-    console.log("Ctrl+1 - Reset Timer 1");
-    console.log("Ctrl+2 - Reset Timer 2");
   </script>
 </body>
 </html>
